@@ -7,12 +7,12 @@
    (weight :initarg :weight :accessor weight)))
 
 (defclass vertex ()
-  ((name :initarg :name :accessor name)
+  ((molecule :initarg :molecule :accessor molecule)
    (edges :initarg :edges :accessor edges)))
 
 (defclass graph ()
-  ((vertices :initform (make-hash-table) :accessor vertices)
-   (edges :initform (make-hash-table) :accessor edges)))
+  ((vertices :initarg :vertices :accessor vertices)
+   (edges :initarg :edges :accessor edges)))
 
 ;;`edges` is a hash (list v1 v2) -> (cons (list v1 v2) weight).
 ;;`vertices` is a hash v -> (list (cons (list v1 v2) weight) (cons (list v3 v4) weight2) ...)
@@ -103,9 +103,22 @@
     matrix))
 
 (defun similarity-graph (molecules matrix)
-  (loop for moly below (1- (length molecules))
-        do (loop for molx from (1+ moly) below (length molecules)
-                 do (format t "x,y = ~a, ~a  -> ~a~%" molx moly (aref matrix molx moly)))))
+  (let ((vertices (loop mol in molecules
+                        collect (make-instance 'vertex :molecule mol))))
+    (let ((graph (make-instance 'graph :vertices vertices)))
+      (loop for moly below (1- (length molecules))
+            for vertexy = (elt vertices moly)
+            do (loop for molx from (1+ moly) below (length molecules)
+                     for vertexx = (elt vertices molx)
+                     for similarity = (aref matrix molx moly)
+                     do (when (> similarity 0.1)
+                          (let ((edge (make-instance 'edge :vertex1 vertexx
+                                                           :vertex2 vertexy
+                                                           :weight similarity)))
+                            (push edge (edges vertexx))
+                            (push edge (edges vertexy))
+                            (push edge (edges graph))))))
+      graph)))
 
 (defun number-of-heavy-atoms (molecule)
  (let ((count 0))

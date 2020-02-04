@@ -10,3 +10,6 @@
 (defparameter *mols8* (subseq *mols* 0 8))
 
 (defparameter *mat8* (lomap::similarity-matrix *mols8*))
+
+(defparameter *graph* (lomap::similarity-graph *mols8* *mat8*))
+
