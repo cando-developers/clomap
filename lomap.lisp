@@ -6,13 +6,23 @@
    (vertex2 :initarg :vertex2 :accessor vertex2)
    (weight :initarg :weight :accessor weight)))
 
+(defmethod print-object ((edge edge) stream)
+  (print-unreadable-object (edge stream)
+    (format stream "LOMAP:EDGE ~a-~a"
+            (chem:get-name (molecule (vertex1 edge)))
+            (chem:get-name (molecule (vertex2 edge))))))
+
 (defclass vertex ()
   ((molecule :initarg :molecule :accessor molecule)
-   (edges :initarg :edges :accessor edges)))
+   (edges :initarg :edges :initform nil :accessor edges)))
+
+(defmethod print-object ((vertex vertex) stream)
+  (print-unreadable-object (vertex stream)
+    (format stream "LOMAP:VERTEX molecule: ~a" (chem:get-name (molecule vertex)))))
 
 (defclass graph ()
-  ((vertices :initarg :vertices :accessor vertices)
-   (edges :initarg :edges :accessor edges)))
+  ((vertices :initarg :vertices :initform nil :accessor vertices)
+   (edges :initarg :edges :initform nil :accessor edges)))
 
 ;;`edges` is a hash (list v1 v2) -> (cons (list v1 v2) weight).
 ;;`vertices` is a hash v -> (list (cons (list v1 v2) weight) (cons (list v3 v4) weight2) ...)
@@ -103,7 +113,7 @@
     matrix))
 
 (defun similarity-graph (molecules matrix)
-  (let ((vertices (loop mol in molecules
+  (let ((vertices (loop for mol in molecules
                         collect (make-instance 'vertex :molecule mol))))
     (let ((graph (make-instance 'graph :vertices vertices)))
       (loop for moly below (1- (length molecules))

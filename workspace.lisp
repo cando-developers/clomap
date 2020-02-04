@@ -1,11 +1,11 @@
 
-(setf *default-pathname-defaults* #P"/Users/yonkunas/Development/fep-benchmark/eg5/")
+(setf *default-pathname-defaults* #P"/home/meister/Development/fep-benchmark/eg5/")
 
-(asdf:load-asd "/Users/yonkunas/Development/lomap/lomap.asd")
+(asdf:load-asd "/home/meister/Development/clomap/lomap.asd")
 
 (asdf:load-system :lomap)
 
-(defparameter *mols* (sdf:load-sdf-as-list-of-molecules "ligands_original.sdf"))
+(defparameter *mols* (sdf:load-sdf-as-list-of-molecules "ligands.sdf"))
 
 (defparameter *mols8* (subseq *mols* 0 8))
 

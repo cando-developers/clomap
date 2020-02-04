@@ -13,5 +13,7 @@
     :components
     ((:file "packages")
      (:file "lomap")
+     (:file "graphviz")
+     (:file "spanning")
      ))
 
