@@ -14,6 +14,7 @@
 
 (defclass vertex ()
   ((molecule :initarg :molecule :accessor molecule)
+   (index :initarg :index :accessor index)
    (edges :initarg :edges :initform nil :accessor edges)))
 
 (defmethod print-object ((vertex vertex) stream)
@@ -23,29 +24,6 @@
 (defclass graph ()
   ((vertices :initarg :vertices :initform nil :accessor vertices)
    (edges :initarg :edges :initform nil :accessor edges)))
-
-;;`edges` is a hash (list v1 v2) -> (cons (list v1 v2) weight).
-;;`vertices` is a hash v -> (list (cons (list v1 v2) weight) (cons (list v3 v4) weight2) ...)
-
-(defmethod graph-instance :after ((g graph) &key vertices edges &allow-other-keys)
-  (with-slots ((v-list vertices) (e-list edges)) g
-    (dolist (v vertices)
-    ;;set up values for vertecies using v as var for each vertex and assign nil
-      (setf (gethash v v-list) nil))
-    ;;now build an edge from a -> b
-    (dolist (e edges)
-    ;;we want `edges` to be a hash e (list v1 v2) -> (cons (list v1 v2) weight)  so each edge (value) points to the verticies its connnected to together with a weight.
-      (let* ((a (first (car e))) (b (second (car e))) (weight (or (cdr e) 1)) (value (cons (list a b) weight)))
-    ;;now hash through and provide, for each vertex, if it is connected to an edge and what edges it is connected to.
-       (multiple-value-bind (v1-edge v1-existsp) (gethash a v-list)
-         (multiple-value-bind (v2-edge v2-existsp) (gethash b v-list)
-           (setf (gethash a v-list) (cons value v1-edge)
-                 (gethash b v-list) (cons value v2-edge)
-                 (gethash (car value) e-list) value)))))))
-
-(defmethod are-they-connected ((g graph) v1 v2)
-  (or (gethash (list v1 v2) (edges g)) (gethash (list v2 v1) (edges g))))
-
 
 
 
@@ -114,14 +92,15 @@
 
 (defun similarity-graph (molecules matrix)
   (let ((vertices (loop for mol in molecules
-                        collect (make-instance 'vertex :molecule mol))))
+                        for index from 0
+                        collect (make-instance 'vertex :molecule mol :index index))))
     (let ((graph (make-instance 'graph :vertices vertices)))
       (loop for moly below (1- (length molecules))
             for vertexy = (elt vertices moly)
             do (loop for molx from (1+ moly) below (length molecules)
                      for vertexx = (elt vertices molx)
                      for similarity = (aref matrix molx moly)
-                     do (when (> similarity 0.1)
+                     do (when (> similarity 0.05)
                           (let ((edge (make-instance 'edge :vertex1 vertexx
                                                            :vertex2 vertexy
                                                            :weight similarity)))
@@ -130,9 +109,51 @@
                             (push edge (edges graph))))))
       graph)))
 
+
+(defun find-basic-cycles (graph)
+  (let (cycles seen)
+    (labels ((follow (vertex path used-edges)
+               (push vertex seen)
+               (dolist (edge (lomap:edges graph))
+                 (unless (member edge used-edges :test (set-equal edge used-edges))
+                   (dolist (neighbor (graph (remove vertex edge)))
+                     (cond ((member neighbor path)
+                            (push (subseq path 0 (1+ (position neighbor path)))
+                                  cycles))
+                           (t (follow neighbor
+                                      (cons neighbor path)
+                                      (cons edge used-edges)))))))))
+      (dolist (node (lomap:vertices graph))
+        (unless (member node seen)
+        (follow node (list node) nil))))))
+
+(defun set-equal (list1 list2 &key (test #'equal))
+  (and (listp list1)
+       (listp list2)
+       (subsetp list1 list2 :test test)
+       (subsetp list2 list1 :test test)))
+
 (defun number-of-heavy-atoms (molecule)
  (let ((count 0))
    (cando:do-atoms (atm molecule)
                    (when (/= (chem:get-atomic-number atm) 1)
                      (incf count)))
    count))
+
+;; functions to convert two zero based indecies (i,j) of a 2d (n x n) upper triangle matrix into a matrix element zero based index (k)
+(declaim (inline index-to-bit))
+(defun index-to-bit (i j n)
+  (declare (fixnum i j n))
+  (let ((k (- (- (+ (- (* n (/ (- n 1) 2)) (* (- n i) (/ (- (- n i) 1) 2))) j) i) 1)))
+  k))
+
+(declaim (inline bit-to-index))
+(defun bit-to-index (k n)
+  (declare (fixnum i j n))
+  (let* ((i (- (- n 2) (truncate (- (/ (sqrt (- (+ (* -8 k) (* n (* 4 (- n 1)))) 7)) 2) 0.5))))
+         (j (+ (- (+ k i 1) (/ (* n (- n 1)) 2)) (* (- n i) (/ (- (- n i) 1) 2)))))
+         (values i j)))
+
+
+(defun bitvec-length (n)
+  (/ (* (1- n) n) 2))
