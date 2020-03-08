@@ -4,13 +4,14 @@
 (defclass edge ()
   ((vertex1 :initarg :vertex1 :accessor vertex1)
    (vertex2 :initarg :vertex2 :accessor vertex2)
-   (weight :initarg :weight :accessor weight)))
+   (sim-score :initarg :sim-score :accessor sim-score)))
 
 (defmethod print-object ((edge edge) stream)
   (print-unreadable-object (edge stream)
-    (format stream "LOMAP:EDGE ~a-~a"
+    (format stream "LOMAP:EDGE ~a-~a :sim-score ~a"
             (chem:get-name (molecule (vertex1 edge)))
-            (chem:get-name (molecule (vertex2 edge))))))
+            (chem:get-name (molecule (vertex2 edge)))
+            (sim-score edge))))
 
 (defclass vertex ()
   ((molecule :initarg :molecule :accessor molecule)
@@ -25,9 +26,15 @@
   ((vertices :initarg :vertices :initform nil :accessor vertices)
    (edges :initarg :edges :initform nil :accessor edges)))
 
+(defun graph-with-edge-removed (graph edge)
+  (let ((new-edges (loop for e in (edges graph)
+                         when (not (eq e edge))
+                           collect e)))
+    (make-instance 'graph :vertices (vertices graph)
+                          :edges new-edges)))
 
 
-;;naximumn common substructure rule
+;;maximumn common substructure rule
 (defun mcsr-similarity-score (mol-a mol-b &key (topological-constraint-theta 2))
   (multiple-value-bind (match delta-a delta-b)
       (molecule-graph.max-clique::compare-molecules mol-a mol-b :topological-constraint-theta topological-constraint-theta)
@@ -100,38 +107,14 @@
             do (loop for molx from (1+ moly) below (length molecules)
                      for vertexx = (elt vertices molx)
                      for similarity = (aref matrix molx moly)
-                     do (when (> similarity 0.05)
+                     do (when (> similarity 0.5)
                           (let ((edge (make-instance 'edge :vertex1 vertexx
                                                            :vertex2 vertexy
-                                                           :weight similarity)))
+                                                           :sim-score similarity)))
                             (push edge (edges vertexx))
                             (push edge (edges vertexy))
                             (push edge (edges graph))))))
       graph)))
-
-
-(defun find-basic-cycles (graph)
-  (let (cycles seen)
-    (labels ((follow (vertex path used-edges)
-               (push vertex seen)
-               (dolist (edge (lomap:edges graph))
-                 (unless (member edge used-edges :test (set-equal edge used-edges))
-                   (dolist (neighbor (graph (remove vertex edge)))
-                     (cond ((member neighbor path)
-                            (push (subseq path 0 (1+ (position neighbor path)))
-                                  cycles))
-                           (t (follow neighbor
-                                      (cons neighbor path)
-                                      (cons edge used-edges)))))))))
-      (dolist (node (lomap:vertices graph))
-        (unless (member node seen)
-        (follow node (list node) nil))))))
-
-(defun set-equal (list1 list2 &key (test #'equal))
-  (and (listp list1)
-       (listp list2)
-       (subsetp list1 list2 :test test)
-       (subsetp list2 list1 :test test)))
 
 (defun number-of-heavy-atoms (molecule)
  (let ((count 0))
@@ -144,6 +127,7 @@
 (declaim (inline index-to-bit))
 (defun index-to-bit (i j n)
   (declare (fixnum i j n))
+  (if (> i j) (rotatef i j)) ;; macro to swap i and j
   (let ((k (- (- (+ (- (* n (/ (- n 1) 2)) (* (- n i) (/ (- (- n i) 1) 2))) j) i) 1)))
   k))
 
@@ -154,6 +138,18 @@
          (j (+ (- (+ k i 1) (/ (* n (- n 1)) 2)) (* (- n i) (/ (- (- n i) 1) 2)))))
          (values i j)))
 
-
 (defun bitvec-length (n)
   (/ (* (1- n) n) 2))
+
+
+(defun edges-sorted-by-similarity (graph)
+  (let* ((edges-copy (copy-list (edges graph)))
+         (sorted-edges (sort edges-copy #'< :key #'sim-score)))
+    sorted-edges))
+
+  
+(defun lomap-graph (graph)
+  (error "do stuff")
+  )
+
+

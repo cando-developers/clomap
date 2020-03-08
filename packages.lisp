@@ -20,21 +20,12 @@
    #:molecule
    #:vertex1
    #:vertex2
-   #:weight
-   ))
-
-(defpackage #:lomap-spanning
-  (:use #:common-lisp)
-  (:export
+   #:index
+   #:sim-score
    #:calculate-spanning-tree
    #:back-span
    #:distance-to-root
    #:back-vertex
-   ))
-
-(defpackage #:lomap-graphviz
-  (:use #:common-lisp)
-  (:export
    #:draw-graph-to-file
    #:draw-graph-to-stream
    ))
