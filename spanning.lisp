@@ -75,7 +75,7 @@ Also return a second value that is the longest path in the spanning tree from th
                  (setf vertex back-vertex))
                (return-from generate-backspan-bitvec bitvec)))))
 
-(defun nodes-in-fundamental-cycles-p (graph spanning-tree)
+(defun all-nodes-in-fundamental-cycles-p (graph spanning-tree)
   ;;question: to do check might need to geberate spanning tree here instead of pass one
   ;;becuase this will be a new "chopped graph" when checking constraints.
   (let* ((outedges (edges-outside-of-spanning-tree graph spanning-tree))
@@ -92,12 +92,21 @@ Also return a second value that is the longest path in the spanning tree from th
                (setf all-cycles-bitvec (bit-ior s12 all-cycles-bitvec))))
    (format t "~a~%" all-cycles-bitvec)
   (let ((nodes-in-cycles (make-array num-vertices :element-type 't :adjustable nil :initial-element nil)))
-    (loop for bit from 0 below (length all-cycles-bitvec)
-          do (multiple-value-bind (node1-index node2-index)
-                 (bit-to-index bit num-vertices)
-               (setf (elt nodes-in-cycles node1-index) t
-                     (elt nodes-in-cycles node2-index) t)))
-    (format t "~a~%~a~%" nodes-in-cycles (every #'identity nodes-in-cycles)))))
+    (loop for bit-index from 0 below (length all-cycles-bitvec)
+          for bit-val = (elt all-cycles-bitvec bit-index)
+          do (when (= bit-val 1)
+               (multiple-value-bind (node1-index node2-index)
+                   (bit-to-index bit-index num-vertices)
+                 (let ((vertex1 (elt (vertices graph) node1-index))
+                       (vertex2 (elt (vertices graph) node2-index)))
+                   (format t "edge ~a - ~a~%" vertex1 vertex2)
+                   (format t "Node-in-cycle ~a ~a~%" node1-index vertex1)
+                   (format t "Node-in-cycle ~a ~a~%" node2-index vertex2))
+                 (setf (elt nodes-in-cycles node1-index) t
+                       (elt nodes-in-cycles node2-index) t))))
+    (let ((all-in (every #'identity nodes-in-cycles)))
+      (format t "nodes-in-cycles -> ~a    all-in -> ~a~%" nodes-in-cycles all-in)
+      all-in))))
 
 (defun graph-wider-than-p (graph maxdist)
   "Return T if the graph-diameter is less than or equal to maxdist"

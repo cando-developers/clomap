@@ -26,7 +26,8 @@
   ((vertices :initarg :vertices :initform nil :accessor vertices)
    (edges :initarg :edges :initform nil :accessor edges)))
 
-(defun graph-with-edge-removed (graph edge)
+(defun copy-graph-with-edge-removed (graph edge)
+  "This returns a copy of the graph with the specified edge removed"
   (let ((new-edges (loop for e in (edges graph)
                          when (not (eq e edge))
                            collect e)))
@@ -139,17 +140,64 @@
          (values i j)))
 
 (defun bitvec-length (n)
+  "Return the length of the edge bitvec given the number of nodex"
   (/ (* (1- n) n) 2))
 
 
+
+(defun edge-bitvec-from-edges (graph)
+  (let* ((num-vertices (length (vertices graph)))
+         (bitvec-length (bitvec-length num-vertices))
+         (bitvec (make-array bitvec-length
+                             :element-type 'bit
+                             :adjustable nil
+                             :initial-element 0)))
+    (format t "bitvec-length -> ~a~%" bitvec-length)
+    (loop for edge in (edges graph)
+          for i = (index (vertex1 edge))
+          for j = (index (vertex2 edge))
+          for idx = (index-to-bit i j num-vertices)
+;;;          do (format t "i j n .. idx -> ~a ~a ~a .. ~a~%" i j num-vertices idx)
+          do (setf (elt bitvec idx) 1)
+          )
+    bitvec))
+        
 (defun edges-sorted-by-similarity (graph)
   (let* ((edges-copy (copy-list (edges graph)))
          (sorted-edges (sort edges-copy #'< :key #'sim-score)))
     sorted-edges))
 
   
-(defun lomap-graph (graph)
-  (error "do stuff")
-  )
-
+(defun lomap-graph (graph &key debug (max-width 8))
+  (let ((done nil)
+        (sorted-edges (edges-sorted-by-similarity graph))
+        )
+    (let* ((filename (format nil "/tmp/graph0.dot")))
+      (format t "Writing graph to ~a~%" filename)
+      (draw-graph-to-file graph filename))
+    (loop
+      for edge in sorted-edges
+      for count from 1
+      until done
+      do (format t "Trying to remove ~a~%" edge)
+      do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
+                (new-bitvec (edge-bitvec-from-edges new-graph))
+                (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph)))))
+           (format t "new-graph vertices: ~a edges: ~a~%" (length (vertices new-graph)) (length (edges new-graph)))
+           (progn
+             (when debug
+               (let* ((filename (format nil "/tmp/graph~a.dot" count)))
+                 (format t "Writing graph to ~a~%" filename)
+                 (draw-span-graph-to-file new-graph filename :edge-bitvec new-bitvec
+                                                             :back-span-info spanning-tree
+                                                             :extra-edges (list edge))))
+             (let ((too-wide (graph-wider-than-p new-graph max-width))
+                   (not-all-in-cycles (not (all-nodes-in-fundamental-cycles-p new-graph spanning-tree))))
+               (format t "too-wide -> ~a  not-all-in-cycles -> ~a~%" too-wide not-all-in-cycles)
+               (setf done (or too-wide not-all-in-cycles))
+               (unless done
+                 (setf graph new-graph))))
+           ))
+    ;; Graph is the simplest graph
+    graph))
 

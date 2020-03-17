@@ -1,12 +1,12 @@
+(setf *default-pathname-defaults* #P"/users/yonkunas/Development/clomap/")
+
+(asdf:load-asd "/users/yonkunas/Development/clomap/lomap.asd")
+
 (progn
   (asdf:load-system :lomap)
   (format t "Done~%"))
 
 (in-package :lomap)
-
-(setf *default-pathname-defaults* #P"/users/yonkunas/Development/clomap/")
-
-(asdf:load-asd "/users/yonkunas/Development/clomap/lomap.asd")
 
 (defparameter *mols* (sdf:load-sdf-as-list-of-molecules "/Users/yonkunas/Development/fep-benchmark/eg5/ligands.sdf"))
 
@@ -62,3 +62,21 @@
 (setf (elt *a* 31) 1)
 (defparameter *b* (make-array 100 :element-type 'bit))
 
+;;; Try running lomap
+(progn
+  (defparameter *new-graph* 1)
+  (lomap-graph *graph*)
+  (print "Hello")
+  )
+(progn
+  (defparameter *new-graph* (lomap-graph *graph* :debug t))
+  (format t "Done~%"))
+*new-graph*
+
+(edge-bitvec-from-edges *graph*)
+(print (length (vertices *graph*)))
+
+*mols11*
+
+(print (index-to-bit 9 8 10))
+  
