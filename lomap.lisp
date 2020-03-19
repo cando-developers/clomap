@@ -170,6 +170,7 @@
   
 (defun lomap-graph (graph &key debug (max-width 8))
   (let ((done nil)
+        (num-vertices (length (vertices graph)))
         (sorted-edges (edges-sorted-by-similarity graph))
         )
     (let* ((filename (format nil "/tmp/graph0.dot")))
@@ -181,8 +182,22 @@
       until done
       do (format t "Trying to remove ~a~%" edge)
       do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
+                (_ (loop for edge in new-graph
+                         do (format t "new-graph edge: ~a~%" edge)))
                 (new-bitvec (edge-bitvec-from-edges new-graph))
-                (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph)))))
+                (_ (loop for bit-index below (length new-bitvec)
+                         for bit-val = (elt new-bitvec bit-index)
+                         do (when (= bit-val 1)
+                              (multiple-value-bind (node1-index node2-index)
+                                  (bit-to-index bit-index num-vertices)
+                                (let ((vertex1 (elt (vertices graph) node1-index))
+                                      (vertex2 (elt (vertices graph) node2-index)))
+                                  (format t "new-bitvec edge ~a - ~a~%" vertex1 vertex2))))))
+                (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph))))
+                (_ (maphash (lambda (vertex backspan)
+                              (format t "spanning-tree ~a -> ~a~%" vertex (back-vertex backspan)))
+                            spanning-tree))
+                )
            (format t "new-graph vertices: ~a edges: ~a~%" (length (vertices new-graph)) (length (edges new-graph)))
            (progn
              (when debug

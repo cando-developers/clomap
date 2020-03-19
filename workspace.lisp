@@ -1,6 +1,6 @@
-(setf *default-pathname-defaults* #P"/users/yonkunas/Development/clomap/")
+(setf *default-pathname-defaults* (pathname (format nil "~a/Development/clomap/" (ext:getenv "HOME"))))
 
-(asdf:load-asd "/users/yonkunas/Development/clomap/lomap.asd")
+(asdf:load-asd (pathname (format nil "~a/Development/clomap/lomap.asd" (ext:getenv "HOME"))))
 
 (progn
   (asdf:load-system :lomap)
@@ -8,13 +8,25 @@
 
 (in-package :lomap)
 
-(defparameter *mols* (sdf:load-sdf-as-list-of-molecules "/Users/yonkunas/Development/fep-benchmark/eg5/ligands.sdf"))
+(defparameter *mols* (sdf:load-sdf-as-list-of-molecules (format nil "~a/Development/fep-benchmark/eg5/ligands.sdf" (ext:getenv "HOME"))))
 
+;;; Smaller graph
+(defparameter *mols4* (subseq *mols* 6 10))
+(defparameter *mat4* (similarity-matrix *mols4*))
+(defparameter *graph* (similarity-graph *mols4* *mat4*))
+
+;;; Larger graph
 (defparameter *mols11* (subseq *mols* 6 16))
-
 (defparameter *mat11* (similarity-matrix *mols11*))
-
 (defparameter *graph* (similarity-graph *mols11* *mat11*))
+
+
+
+(progn
+  (defparameter *new-graph* (lomap-graph *graph* :debug t))
+  (format t "Done~%"))
+
+
 
 (draw-graph-to-file *graph* "/tmp/tmp.dot")
 
