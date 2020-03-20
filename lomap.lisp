@@ -16,6 +16,7 @@
 (defclass vertex ()
   ((molecule :initarg :molecule :accessor molecule)
    (index :initarg :index :accessor index)
+   (xypos :initform nil :initarg :xypos :accessor xypos)
    (edges :initarg :edges :initform nil :accessor edges)))
 
 (defmethod print-object ((vertex vertex) stream)
@@ -26,11 +27,21 @@
   ((vertices :initarg :vertices :initform nil :accessor vertices)
    (edges :initarg :edges :initform nil :accessor edges)))
 
+(defun graph-set-positions (graph positions)
+  (loop for pos in positions
+        for name = (first pos)
+        for xpos = (second pos)
+        for ypos = (third pos)
+        for vertex = (find name (vertices graph) :test #'equal :key (lambda (vertex) (string (chem:get-name (molecule vertex)))))
+        do (setf (xypos vertex) (list xpos ypos))))
+
 (defun copy-graph-with-edge-removed (graph edge)
   "This returns a copy of the graph with the specified edge removed"
+  (format t "In copy-graph-with-edge-removed~%")
   (let ((new-edges (loop for e in (edges graph)
                          when (not (eq e edge))
                            collect e)))
+    (format t "About to make-instance~%")
     (make-instance 'graph :vertices (vertices graph)
                           :edges new-edges)))
 
@@ -180,9 +191,8 @@
       for edge in sorted-edges
       for count from 1
       until done
-      do (format t "Trying to remove ~a~%" edge)
       do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
-                (_ (loop for edge in new-graph
+                (_ (loop for edge in (edges new-graph)
                          do (format t "new-graph edge: ~a~%" edge)))
                 (new-bitvec (edge-bitvec-from-edges new-graph))
                 (_ (loop for bit-index below (length new-bitvec)
@@ -195,7 +205,7 @@
                                   (format t "new-bitvec edge ~a - ~a~%" vertex1 vertex2))))))
                 (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph))))
                 (_ (maphash (lambda (vertex backspan)
-                              (format t "spanning-tree ~a -> ~a~%" vertex (back-vertex backspan)))
+                              (format t "spanning-tree ~a -> ~a~%" vertex (and backspan (back-vertex backspan))))
                             spanning-tree))
                 )
            (format t "new-graph vertices: ~a edges: ~a~%" (length (vertices new-graph)) (length (edges new-graph)))

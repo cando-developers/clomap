@@ -20,7 +20,19 @@
 (defparameter *mat11* (similarity-matrix *mols11*))
 (defparameter *graph* (similarity-graph *mols11* *mat11*))
 
-
+(graph-set-positions *graph*
+                     '(("CHEMBL1096002" 213.29 104.6)
+                       ("CHEMBL1084143" 104.4 18)
+                       ("CHEMBL1085692" 161.95 47.491)
+                       ("CHEMBL1085666" 313.98 194.15)
+                       ("CHEMBL1083836" 270.01 156.43)
+                       ("CHEMBL1077204" 77.91 73.688)
+                       ("CHEMBL1096003" 137.04 100.11)
+                       ("CHEMBL1083517" 351.84 163.16)
+                       ("CHEMBL1086410" 289.73 110.38)
+                       ("CHEMBL1077227" 347.21 114.61)
+                       ))
+ *graph*
 
 (progn
   (defparameter *new-graph* (lomap-graph *graph* :debug t))
