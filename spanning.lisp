@@ -7,14 +7,14 @@
 (defparameter *debug-spanning-tree* nil)
 (defparameter *largest-distance* nil)
 
-(defun span-from-node (vertex distance back-span-info)
+(defun span-from-node (vertex distance back-span-info graph)
   (when *debug-spanning-tree*
     (format t "On vertex: ~a~%" vertex))
   (setf distance (1+ distance))
   (setf *largest-distance* (max *largest-distance* distance))
   ;; First visit all the other edges and create a back-span to the current vertex
   (let ((other-vertices nil))
-    (loop for edge in (edges vertex)
+    (loop for edge in (vertex-edges vertex graph)
           for other-vertex = (if (eq (vertex1 edge) vertex)
                                  (vertex2 edge)
                                  (vertex1 edge))
@@ -30,7 +30,7 @@
                  (push other-vertex other-vertices))))
     ;; then loop over the other vertices and visit them
     (loop for other-vertex in other-vertices
-          do (span-from-node other-vertex distance back-span-info))))
+          do (span-from-node other-vertex distance back-span-info graph))))
 
 (defun calculate-spanning-tree (graph root-vertex &key debug)
   "Return a hash-table of back-span records that describe a spanning tree from the root.
@@ -39,7 +39,7 @@ Also return a second value that is the longest path in the spanning tree from th
         (*largest-distance* 0))
     (let ((back-span-info (make-hash-table)))
       (setf (gethash root-vertex back-span-info) nil)
-      (span-from-node root-vertex 0 back-span-info)
+      (span-from-node root-vertex 0 back-span-info graph)
       (values back-span-info *largest-distance*))))
 
 (defun edge-in-spanning-tree-p (edge back-span-info)

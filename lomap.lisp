@@ -17,7 +17,13 @@
   ((molecule :initarg :molecule :accessor molecule)
    (index :initarg :index :accessor index)
    (xypos :initform nil :initarg :xypos :accessor xypos)
-   (edges :initarg :edges :initform nil :accessor edges)))
+   ))
+
+(defun vertex-edges (vertex graph)
+  (loop for edge in (edges graph)
+        when (or (eq (vertex1 edge) vertex)
+                 (eq (vertex2 edge) vertex))
+          collect edge))
 
 (defmethod print-object ((vertex vertex) stream)
   (print-unreadable-object (vertex stream)
@@ -37,11 +43,9 @@
 
 (defun copy-graph-with-edge-removed (graph edge)
   "This returns a copy of the graph with the specified edge removed"
-  (format t "In copy-graph-with-edge-removed~%")
   (let ((new-edges (loop for e in (edges graph)
                          when (not (eq e edge))
                            collect e)))
-    (format t "About to make-instance~%")
     (make-instance 'graph :vertices (vertices graph)
                           :edges new-edges)))
 
@@ -123,8 +127,6 @@
                           (let ((edge (make-instance 'edge :vertex1 vertexx
                                                            :vertex2 vertexy
                                                            :sim-score similarity)))
-                            (push edge (edges vertexx))
-                            (push edge (edges vertexy))
                             (push edge (edges graph))))))
       graph)))
 
@@ -183,6 +185,7 @@
   (let ((done nil)
         (num-vertices (length (vertices graph)))
         (sorted-edges (edges-sorted-by-similarity graph))
+        satisfies-constraints
         )
     (let* ((filename (format nil "/tmp/graph0.dot")))
       (format t "Writing graph to ~a~%" filename)
@@ -190,37 +193,23 @@
     (loop
       for edge in sorted-edges
       for count from 1
-      until done
       do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
-                (_ (loop for edge in (edges new-graph)
-                         do (format t "new-graph edge: ~a~%" edge)))
                 (new-bitvec (edge-bitvec-from-edges new-graph))
-                (_ (loop for bit-index below (length new-bitvec)
-                         for bit-val = (elt new-bitvec bit-index)
-                         do (when (= bit-val 1)
-                              (multiple-value-bind (node1-index node2-index)
-                                  (bit-to-index bit-index num-vertices)
-                                (let ((vertex1 (elt (vertices graph) node1-index))
-                                      (vertex2 (elt (vertices graph) node2-index)))
-                                  (format t "new-bitvec edge ~a - ~a~%" vertex1 vertex2))))))
                 (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph))))
-                (_ (maphash (lambda (vertex backspan)
-                              (format t "spanning-tree ~a -> ~a~%" vertex (and backspan (back-vertex backspan))))
-                            spanning-tree))
                 )
-           (format t "new-graph vertices: ~a edges: ~a~%" (length (vertices new-graph)) (length (edges new-graph)))
+           (format t "Testing removal of edge: ~a~%" edge)
            (progn
              (when debug
                (let* ((filename (format nil "/tmp/graph~a.dot" count)))
                  (format t "Writing graph to ~a~%" filename)
-                 (draw-span-graph-to-file new-graph filename :edge-bitvec new-bitvec
+                 (draw-graph-to-file new-graph filename :edge-bitvec new-bitvec
                                                              :back-span-info spanning-tree
                                                              :extra-edges (list edge))))
              (let ((too-wide (graph-wider-than-p new-graph max-width))
-                   (not-all-in-cycles (not (all-nodes-in-fundamental-cycles-p new-graph spanning-tree))))
-               (format t "too-wide -> ~a  not-all-in-cycles -> ~a~%" too-wide not-all-in-cycles)
-               (setf done (or too-wide not-all-in-cycles))
-               (unless done
+                   (all-in-cycles (all-nodes-in-fundamental-cycles-p new-graph spanning-tree)))
+               (format t "too-wide -> ~a  all-in-cycles -> ~a~%" too-wide all-in-cycles)
+               (setf satisfies-constraints (and (not too-wide) all-in-cycles))
+               (when satisfies-constraints
                  (setf graph new-graph))))
            ))
     ;; Graph is the simplest graph
