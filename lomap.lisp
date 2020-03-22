@@ -1,4 +1,3 @@
-
 (in-package :lomap)
 
 (defclass edge ()
@@ -165,7 +164,6 @@
                              :element-type 'bit
                              :adjustable nil
                              :initial-element 0)))
-    (format t "bitvec-length -> ~a~%" bitvec-length)
     (loop for edge in (edges graph)
           for i = (index (vertex1 edge))
           for j = (index (vertex2 edge))

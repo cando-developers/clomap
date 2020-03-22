@@ -45,15 +45,17 @@ Also return a second value that is the longest path in the spanning tree from th
 (defun edge-in-spanning-tree-p (edge back-span-info)
   ;; Check the first vertex of edge
   (let* ((vertex (vertex1 edge))
-         (bsi (gethash vertex back-span-info))
-         (back-vertex (back-vertex bsi)))
-    (when (eq back-vertex (vertex2 edge))
-      (return-from edge-in-spanning-tree-p t)))
+         (bsi (gethash vertex back-span-info)))
+    (when bsi
+      (let ((back-vertex (back-vertex bsi)))
+        (when (eq back-vertex (vertex2 edge))
+          (return-from edge-in-spanning-tree-p t)))))
   (let* ((vertex (vertex2 edge))
-         (bsi (gethash vertex back-span-info))
-         (back-vertex (back-vertex bsi)))
-    (when (eq back-vertex (vertex1 edge))
-      (return-from edge-in-spanning-tree-p t)))
+         (bsi (gethash vertex back-span-info)))
+    (when bsi
+      (let ((back-vertex (back-vertex bsi)))
+        (when (eq back-vertex (vertex1 edge))
+          (return-from edge-in-spanning-tree-p t)))))
   nil)
 
 (defun edges-outside-of-spanning-tree (graph back-span-info)
