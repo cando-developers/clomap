@@ -208,6 +208,7 @@
              (let ((too-wide (graph-wider-than-p new-graph max-width))
                    (all-in-cycles (all-nodes-in-fundamental-cycles-p new-graph spanning-tree)))
                (format t "too-wide -> ~a  all-in-cycles -> ~a~%" too-wide all-in-cycles)
+               (format t "Number of connected components: ~a~%" (number-connected-components new-graph))
                (setf satisfies-constraints (and (not too-wide) all-in-cycles))
                (when satisfies-constraints
                  (setf graph new-graph))))

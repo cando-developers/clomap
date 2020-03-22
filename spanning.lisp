@@ -117,3 +117,26 @@ Also return a second value that is the longest path in the spanning tree from th
                (return-from graph-wider-than-p T))))
   nil)
 
+
+(defun connected-components (graph)
+  "Return a list of lists of vertices.  Each list of vertices is a connected component in the graph"
+  (let ((vertices (copy-list (vertices graph)))
+        all-components)
+    (loop
+      do (let* ((one-vertex (first vertices))
+                (spanning-tree (calculate-spanning-tree graph one-vertex))
+                component
+                untouched-vertices)
+           (loop for vertex in vertices
+                 do (multiple-value-bind (back-span foundp)
+                        (gethash vertex spanning-tree)
+                      (if foundp
+                          (push vertex component)
+                          (push vertex untouched-vertices))))
+           (push component all-components)
+           (when (null untouched-vertices)
+             (return-from connected-components all-components))
+           (setf vertices untouched-vertices)))))
+
+(defun number-connected-components (graph)
+  (length (connected-components graph)))
