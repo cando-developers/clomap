@@ -92,7 +92,7 @@ Also return a second value that is the longest path in the spanning tree from th
                     (s12 (bit-xor s1 s2)))
                     (setf (elt s12 (index-to-bit (index (vertex1 outedge-i)) (index (vertex2 outedge-i)) num-vertices)) 1)
                (setf all-cycles-bitvec (bit-ior s12 all-cycles-bitvec))))
-   (format t "~a~%" all-cycles-bitvec)
+    #+debug-lomap(format t "all-cycles-bitvec: ~a~%" all-cycles-bitvec)
   (let ((nodes-in-cycles (make-array num-vertices :element-type 't :adjustable nil :initial-element nil)))
     (loop for bit-index from 0 below (length all-cycles-bitvec)
           for bit-val = (elt all-cycles-bitvec bit-index)
@@ -101,13 +101,15 @@ Also return a second value that is the longest path in the spanning tree from th
                    (bit-to-index bit-index num-vertices)
                  (let ((vertex1 (elt (vertices graph) node1-index))
                        (vertex2 (elt (vertices graph) node2-index)))
-                   (format t "edge ~a - ~a~%" vertex1 vertex2)
-                   (format t "Node-in-cycle ~a ~a~%" node1-index vertex1)
-                   (format t "Node-in-cycle ~a ~a~%" node2-index vertex2))
+                   #+debug-lomap
+                   (progn
+                     (format t "edge ~a - ~a~%" vertex1 vertex2)
+                     (format t "Node-in-cycle ~a ~a~%" node1-index vertex1)
+                     (format t "Node-in-cycle ~a ~a~%" node2-index vertex2)))
                  (setf (elt nodes-in-cycles node1-index) t
                        (elt nodes-in-cycles node2-index) t))))
     (let ((all-in (every #'identity nodes-in-cycles)))
-      (format t "nodes-in-cycles -> ~a    all-in -> ~a~%" nodes-in-cycles all-in)
+      #+debug-lomap(format t "nodes-in-cycles -> ~a    all-in -> ~a~%" nodes-in-cycles all-in)
       all-in))))
 
 (defun graph-wider-than-p (graph maxdist)

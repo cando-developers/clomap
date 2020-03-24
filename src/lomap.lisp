@@ -101,15 +101,60 @@
           (t (setq mincar 1)))
   mincar))
 
-(defun similarity-matrix (molecules)
-  (let ((matrix (make-array (list (length molecules) (length molecules)) :element-type 't)))
+(defclass simcalc ()
+  ((mol-a :initarg :mol-a :accessor mol-a)
+   (mol-b :initarg :mol-b :accessor mol-b)
+   (xindex :initarg :xindex :accessor xindex)
+   (yindex :initarg :yindex :accessor yindex)
+   (similarity :initform nil :accessor similarity)
+   ))
+  
+(defun serial-similarity-matrix (molecules)
+  (let ((matrix (make-array (list (length molecules) (length molecules)) :element-type 't))
+        simcalcs)
     (loop for yindex from 0 below (1- (length molecules))
           for mol-a = (elt molecules yindex)
           do (loop for xindex from (1+ yindex) below (length molecules)
                    for mol-b = (elt molecules xindex)
-                   for similarity = (mcsr-similarity-score mol-a mol-b)
-                   do (setf (aref matrix xindex yindex) similarity)
-                   do (setf (aref matrix yindex xindex) similarity)))
+                   for simcalc = (make-instance 'simcalc :mol-a mol-a :mol-b mol-b :xindex xindex :yindex yindex)
+                   do (push simcalc simcalcs)))
+    ;; Run simcalcs in parallel (mcsr-similarity-score mol-a mol-b)
+    (mapc
+     (lambda (simcalc)
+       (let ((similarity (mcsr-similarity-score (mol-a simcalc) (mol-b simcalc))))
+         (setf (similarity simcalc) similarity)))
+     simcalcs)
+    (loop for simcalc in simcalcs
+          for similarity = (similarity simcalc)
+          for xindex = (xindex simcalc)
+          for yindex = (yindex simcalc)
+          do (setf (aref matrix xindex yindex) similarity)
+          do (setf (aref matrix yindex xindex) similarity))
+    matrix))
+   
+(defun similarity-matrix (molecules)
+  "Parallel implementation of similarity-matrix"
+  (let ((matrix (make-array (list (length molecules) (length molecules)) :element-type 't))
+        simcalcs)
+    (loop for yindex from 0 below (1- (length molecules))
+          for mol-a = (elt molecules yindex)
+          do (loop for xindex from (1+ yindex) below (length molecules)
+                   for mol-b = (elt molecules xindex)
+                   for simcalc = (make-instance 'simcalc :mol-a mol-a :mol-b mol-b :xindex xindex :yindex yindex)
+                   do (push simcalc simcalcs)))
+    ;; Run simcalcs in parallel (mcsr-similarity-score mol-a mol-b)
+    (lparallel:pmapc
+     (lambda (simcalc)
+       (let ((similarity (mcsr-similarity-score (mol-a simcalc) (mol-b simcalc))))
+         (setf (similarity simcalc) similarity)))
+     simcalcs)
+    (loop for simcalc in simcalcs
+          for similarity = (similarity simcalc)
+          for xindex = (xindex simcalc)
+          for yindex = (yindex simcalc)
+          do (setf (aref matrix xindex yindex) similarity)
+          do (setf (aref matrix yindex xindex) similarity))
+    (format t "similarity-matrix ->~%~a~%" matrix)
     matrix))
 
 (defun similarity-graph (molecules matrix)
@@ -128,6 +173,8 @@
                                                            :sim-score similarity)))
                             (push edge (edges graph))))))
       graph)))
+
+
 
 (defun number-of-heavy-atoms (molecule)
  (let ((count 0))
@@ -184,33 +231,40 @@
         (num-vertices (length (vertices graph)))
         (sorted-edges (edges-sorted-by-similarity graph))
         satisfies-constraints
+        (number-connected-components (number-connected-components graph))
+        (count 0)
         )
-    (let* ((filename (format nil "/tmp/graph0.dot")))
-      (format t "Writing graph to ~a~%" filename)
-      (draw-graph-to-file graph filename))
+    (when debug
+      (let* ((filename (format nil "/tmp/graph0.dot")))
+        (format t "Writing graph to ~a~%" filename)
+        (draw-graph-to-file graph filename)))
     (loop
       for edge in sorted-edges
-      for count from 1
       do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
                 (new-bitvec (edge-bitvec-from-edges new-graph))
                 (spanning-tree (calculate-spanning-tree new-graph (first (vertices new-graph))))
                 )
-           (format t "Testing removal of edge: ~a~%" edge)
+           #+debug-lomap (format t "Testing removal of edge: ~a~%" edge)
            (progn
              (when debug
-               (let* ((filename (format nil "/tmp/graph~a.dot" count)))
+               (let* ((filename (format nil "/tmp/graph~a.dot" (incf count))))
                  (format t "Writing graph to ~a~%" filename)
                  (draw-graph-to-file new-graph filename :edge-bitvec new-bitvec
-                                                             :back-span-info spanning-tree
-                                                             :extra-edges (list edge))))
+                                                        :back-span-info spanning-tree
+                                                        :extra-edges (list edge))))
              (let ((too-wide (graph-wider-than-p new-graph max-width))
-                   (all-in-cycles (all-nodes-in-fundamental-cycles-p new-graph spanning-tree)))
-               (format t "too-wide -> ~a  all-in-cycles -> ~a~%" too-wide all-in-cycles)
-               (format t "Number of connected components: ~a~%" (number-connected-components new-graph))
-               (setf satisfies-constraints (and (not too-wide) all-in-cycles))
+                   (all-in-cycles (all-nodes-in-fundamental-cycles-p new-graph spanning-tree))
+                   (same-connected-components-p (= number-connected-components (number-connected-components new-graph))))
+               #+debug-lomap
+               (format t "too-wide -> ~a  all-in-cycles -> ~a same-connected-components-p -> ~a~%" too-wide all-in-cycles same-connected-components-p)
+               (setf satisfies-constraints (and (not too-wide) all-in-cycles same-connected-components-p))
                (when satisfies-constraints
                  (setf graph new-graph))))
            ))
     ;; Graph is the simplest graph
+    (when debug
+      (let* ((filename (format nil "/tmp/graph~a.dot" (incf count))))
+        (format t "Writing graph to ~a~%" filename)
+        (draw-graph-to-file graph filename)))
     graph))
 
