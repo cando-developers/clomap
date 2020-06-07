@@ -1,5 +1,7 @@
 (in-package :lomap)
 
+(defparameter *hard-similarity-limit* 0.1)
+
 (defclass edge ()
   ((vertex1 :initarg :vertex1 :accessor vertex1)
    (vertex2 :initarg :vertex2 :accessor vertex2)
@@ -32,13 +34,18 @@
   ((vertices :initarg :vertices :initform nil :accessor vertices)
    (edges :initarg :edges :initform nil :accessor edges)))
 
-(defun graph-set-positions (graph positions)
-  (loop for pos in positions
-        for name = (first pos)
-        for xpos = (second pos)
-        for ypos = (third pos)
-        for vertex = (find name (vertices graph) :test #'equal :key (lambda (vertex) (string (chem:get-name (molecule vertex)))))
-        do (setf (xypos vertex) (list xpos ypos))))
+(defclass multigraph ()
+  ((subgraphs :initarg :subgraphs :initform nil :accessor subgraphs)))
+
+(defun multigraph-set-positions (multigraph positions)
+  (loop for graph in (subgraphs multigraph)
+        do (loop for pos in positions
+                 for name = (first pos)
+                 for xpos = (second pos)
+                 for ypos = (third pos)
+                 for vertex = (find name (vertices graph) :test #'equal :key (lambda (vertex) (string (chem:get-name (molecule vertex)))))
+                 do (if vertex
+                        (setf (xypos vertex) (list xpos ypos))))))
 
 (defun copy-graph-with-edge-removed (graph edge)
   "This returns a copy of the graph with the specified edge removed"
@@ -167,7 +174,7 @@
             do (loop for molx from (1+ moly) below (length molecules)
                      for vertexx = (elt vertices molx)
                      for similarity = (aref matrix molx moly)
-                     do (when (> similarity 0.5)
+                     do (when (> similarity 0.0)
                           (let ((edge (make-instance 'edge :vertex1 vertexx
                                                            :vertex2 vertexy
                                                            :sim-score similarity)))
@@ -175,6 +182,41 @@
       graph)))
 
 
+(defun remove-edges-below-hard-limit (graph)
+  (let ((sorted-edges (edges-sorted-by-similarity graph)))
+    (loop for edge in sorted-edges
+          for similarity = (sim-score edge)
+          until (>= similarity *hard-similarity-limit*)
+          do (let* ((new-graph (copy-graph-with-edge-removed graph edge))
+                    (all-in-cycles-p (all-nodes-in-fundamental-cycles-p new-graph)))
+               (when all-in-cycles-p
+                 (setf graph new-graph))))
+    graph))
+
+(defun partition (predicate list)
+  (loop for item in list
+        if (funcall predicate item)
+          collect item into positive
+        else
+          collect item into negative
+        finally (return (values positive negative)))) ;; look ma, no parens
+
+(defun similarity-multigraph (molecules similarity-matrix)
+  (let* ((start-graph (similarity-graph molecules similarity-matrix))
+         (graph (remove-edges-below-hard-limit start-graph))
+         (components (connected-components graph))
+         (subgraphs (loop for component in components
+                          for component-edges = (partition (lambda (edge)
+                                                             (and (find (vertex1 edge) component)
+                                                                  (find (vertex2 edge) component)))
+                                                           (edges graph))
+                          for subgraph = (make-instance 'graph :vertices component
+                                                               :edges component-edges)
+                          do (loop for vertex in component
+                                   for id from 0
+                                   do (setf (index vertex) id))
+                          collect subgraph)))
+    (make-instance 'multigraph :subgraphs subgraphs)))
 
 (defun number-of-heavy-atoms (molecule)
  (let ((count 0))
@@ -225,8 +267,7 @@
          (sorted-edges (sort edges-copy #'< :key #'sim-score)))
     sorted-edges))
 
-  
-(defun lomap-graph (graph &key debug (max-width 8))
+(defun lomap-subgraph (graph graphid &key debug (max-width 8))
   (let ((done nil)
         (num-vertices (length (vertices graph)))
         (sorted-edges (edges-sorted-by-similarity graph))
@@ -235,7 +276,7 @@
         (count 0)
         )
     (when debug
-      (let* ((filename (format nil "/tmp/graph0.dot")))
+      (let* ((filename (format nil "/tmp/graph~a-000.dot" graphid)))
         (format t "Writing graph to ~a~%" filename)
         (draw-graph-to-file graph filename)))
     (loop
@@ -247,7 +288,7 @@
            #+debug-lomap (format t "Testing removal of edge: ~a~%" edge)
            (progn
              (when debug
-               (let* ((filename (format nil "/tmp/graph~a.dot" (incf count))))
+               (let* ((filename (format nil "/tmp/graph~a-~3,'0d.dot" graphid (incf count))))
                  (format t "Writing graph to ~a~%" filename)
                  (draw-graph-to-file new-graph filename :edge-bitvec new-bitvec
                                                         :back-span-info spanning-tree
@@ -263,8 +304,18 @@
            ))
     ;; Graph is the simplest graph
     (when debug
-      (let* ((filename (format nil "/tmp/graph~a.dot" (incf count))))
+      (let* ((filename (format nil "/tmp/graph~a-~3,'0d.dot" graphid (incf count))))
         (format t "Writing graph to ~a~%" filename)
         (draw-graph-to-file graph filename)))
     graph))
+  
+(defun lomap-multigraph (multigraph &key debug (max-width 8))
+  (check-type multigraph multigraph)
+  (let (new-subgraphs)
+    (loop for subgraph in (subgraphs multigraph)
+          for count from 0
+          for new-subgraph = (lomap-subgraph subgraph count :debug debug)
+          do (push new-subgraph new-subgraphs))
+    (make-instance 'multigraph :subgraphs new-subgraphs)))
+        
 

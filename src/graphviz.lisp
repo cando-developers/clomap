@@ -1,5 +1,7 @@
 (in-package :lomap)
 
+(defparameter *neato-scale* 0.04)
+
 (defun draw-graph-to-stream (graph stream &key edge-bitvec back-span-info extra-edges)
   ;;maybe change back-span-info to spanning-tree to make it more readable.
   (format stream "digraph goofy {~%")
@@ -12,8 +14,8 @@
                (setf (gethash vertex ids) id)
                (if (xypos vertex)
                  (let* ((pos (xypos vertex))
-                        (xpos (* 0.05 (first pos)))
-                        (ypos (* 0.05 (second pos))))
+                        (xpos (* *neato-scale* (first pos)))
+                        (ypos (* *neato-scale* (second pos))))
                    (format stream "~a [label = \"~a\", pos=\"~8,4f,~8,4f!\"];~%" id (chem:get-name (molecule vertex)) xpos ypos))
                  (format stream "~a [label = \"~a\"];~%" id (chem:get-name (molecule vertex))))
                ))

@@ -2,6 +2,7 @@
 
 (asdf:load-asd (pathname (format nil "~a/Development/clomap/lomap.asd" (ext:getenv "HOME"))))
 
+(push :debug-lomap *features*)
 (progn
   (asdf:load-system :lomap)
   (format t "Done~%"))
@@ -18,24 +19,48 @@
 ;;; Larger graph
 (defparameter *mols11* (subseq *mols* 6 16))
 (defparameter *mat11* (similarity-matrix *mols11*))
-(defparameter *graph* (similarity-graph *mols11* *mat11*))
+(defparameter *graph* (similarity-multigraph *mols11* *mat11*))
 
-(graph-set-positions *graph*
-                     '(("CHEMBL1096002" 213.29 104.6)
-                       ("CHEMBL1084143" 104.4 18)
-                       ("CHEMBL1085692" 161.95 47.491)
-                       ("CHEMBL1085666" 313.98 194.15)
-                       ("CHEMBL1083836" 270.01 156.43)
-                       ("CHEMBL1077204" 77.91 73.688)
-                       ("CHEMBL1096003" 137.04 100.11)
-                       ("CHEMBL1083517" 351.84 163.16)
-                       ("CHEMBL1086410" 289.73 110.38)
-                       ("CHEMBL1077227" 347.21 114.61)
+
+;;; All molecules graph
+(defparameter *mat* (similarity-matrix *mols*))
+(defparameter *graph* (similarity-multigraph *mols* *mat*))
+
+(multigraph-set-positions *graph*
+                     '(
+                       ("CHEMBL1088740" 400 190)
+                       ("CHEMBL1078998" 558 276)
+                       ("CHEMBL1084935" 1739 18)
+                       ("CHEMBL1084676" 1172 104)
+                       ("CHEMBL1093088" 202 276)
+                       ("CHEMBL1089056" 347 362)
+                       ("CHEMBL1096002" 1583 104)
+                       ("CHEMBL1084143" 1093 190)
+                       ("CHEMBL1085692" 1305 276)
+                       ("CHEMBL1085666" 2106 104)
+                       ("CHEMBL1083836" 1886 190)
+                       ("CHEMBL1077204" 971 362)
+                       ("CHEMBL1096003" 1247 448)
+                       ("CHEMBL1083517" 2228 276)
+                       ("CHEMBL1086410" 1971 362)
+                       ("CHEMBL1077227" 2289 448)
+                       ("CHEMBL1084677" 1275 534)
+                       ("CHEMBL1085895" 173 362)
+                       ("CHEMBL1084431" 824 448)
+                       ("CHEMBL1084115" 453 448)
+                       ("CHEMBL1084678" 1064 620)
+                       ("CHEMBL1082248" 1936 448)
+                       ("CHEMBL1086409" 2050 534)
+                       ("CHEMBL1078691" 287 534)
+                       ("CHEMBL1089393" 499 620)
+                       ("CHEMBL1082249" 1500 534)
+                       ("CHEMBL1093087" 1205 706)
+                       ("CHEMBL1078774" 414 706)
                        ))
  *graph*
 
 (progn
-  (time (defparameter *new-graph* (lomap-graph *graph* :debug nil)))
+  (time (defparameter *new-graph* (lomap-multigraph *graph* :debug t)))
   (format t "Done~%"))
 
 
